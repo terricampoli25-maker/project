@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Habit Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="style_new.css">
+    <script src="app_new.js" defer></script>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- HEADER -->
+        <header class="header">
+
+            <div class="top-row">
+
+                <!-- MONTH + ARROWS -->
+                <div class="month-nav">
+                    <button id="prevMonthBtn" class="nav-btn large-nav">◀</button>
+                    <span id="monthLabel" class="month-title"></span>
+                    <button id="nextMonthBtn" class="nav-btn large-nav">▶</button>
+                </div>
+
+            </div>
+
+            <!-- ADD HABIT BUTTON ABOVE TABLE -->
+            <div class="add-habit-bar">
+                <button id="addHabitBtn" class="add-habit-btn">Add Habit</button>
+            </div>
+
+        </header>
+
+        <!-- TABLE -->
+        <section class="table-wrapper">
+            <table id="habitTable">
+                <thead>
+                    <tr>
+                        <th class="habit-col">Habit</th>
+                        <th class="notes-col">Notes</th>
+                        <!-- JS inserts day numbers -->
+                    </tr>
+                </thead>
+                <tbody id="habitBody">
+                    <!-- JS inserts habit rows -->
+                </tbody>
+            </table>
+        </section>
+
+    </div>
+
+    <!-- CONFETTI -->
+    <div id="confettiContainer"></div>
+
+    <!-- SOUND -->
+    <audio id="chimeSound">
+        <source src="chime.mp3" type="audio/mpeg">
+    </audio>
+
+</body>
+</html>
