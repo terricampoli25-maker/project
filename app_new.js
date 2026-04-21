@@ -6,6 +6,9 @@ let habits = [];
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 
+let activeHabitIndex = null;
+let activeDayKey = null;
+
 /* ---------------------------------------------------
    INITIALIZATION
 --------------------------------------------------- */
@@ -14,10 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadData();
     renderMonth();
 
-    // Add habit
     document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 
-    // Month navigation
     document.getElementById("prevMonthBtn").addEventListener("click", () => {
         currentMonth--;
         if (currentMonth < 0) {
@@ -35,7 +36,100 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         renderMonth();
     });
+
+    document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+        if (e.target.id === "modalOverlay") closeModal();
+    });
+
+    document.getElementById("modalTextarea").addEventListener("input", handleNoteInput);
 });
+
+/* ---------------------------------------------------
+   ADD + DELETE HABITS
+--------------------------------------------------- */
+
+function addHabit() {
+    const name = prompt("Enter habit name:");
+    if (!name || name.trim() === "") return;
+
+    habits.push({
+        name: name.trim(),
+        completed: {},
+        notes: {}
+    });
+
+    saveData();
+    renderMonth();
+}
+
+function deleteHabit(index) {
+    if (!confirm(`Delete habit "${habits[index].name}"?`)) return;
+    habits.splice(index, 1);
+    saveData();
+    renderMonth();
+}
+
+/* ---------------------------------------------------
+   MODAL FUNCTIONS
+--------------------------------------------------- */
+
+function openModal(habitIndex, dayKey) {
+    activeHabitIndex = habitIndex;
+    activeDayKey = dayKey;
+
+    const modal = document.getElementById("noteModal");
+    const overlay = document.getElementById("modalOverlay");
+    const textarea = document.getElementById("modalTextarea");
+
+    const habit = habits[habitIndex];
+
+    if (!habit.notes || typeof habit.notes !== "object") {
+        habit.notes = {};
+    }
+
+    textarea.value = habit.notes[dayKey] || "";
+
+    overlay.classList.add("show");
+    modal.classList.add("show");
+}
+
+function closeModal() {
+    const modal = document.getElementById("noteModal");
+    const overlay = document.getElementById("modalOverlay");
+
+    modal.classList.remove("show");
+    overlay.classList.remove("show");
+
+    activeHabitIndex = null;
+    activeDayKey = null;
+}
+
+/* ---------------------------------------------------
+   HANDLE NOTE INPUT
+--------------------------------------------------- */
+
+function handleNoteInput() {
+    if (activeHabitIndex === null || !activeDayKey) return;
+
+    const textarea = document.getElementById("modalTextarea");
+    const habit = habits[activeHabitIndex];
+
+    if (!habit.notes || typeof habit.notes !== "object") {
+        habit.notes = {};
+    }
+
+    const value = textarea.value.trim();
+
+    if (value === "") {
+        delete habit.notes[activeDayKey];
+    } else {
+        habit.notes[activeDayKey] = value;
+    }
+
+    saveData();
+    renderMonth();
+}
 
 /* ---------------------------------------------------
    RENDER MONTH + TABLE
@@ -53,13 +147,10 @@ function renderMonth() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     /* ------------------------------
-       BUILD DAY HEADERS
+       RENDER HEADER
     ------------------------------ */
     const headerRow = document.querySelector("thead tr");
-    headerRow.innerHTML = `
-        <th class="habit-col">Habit</th>
-        <th class="notes-col">Notes</th>
-    `;
+    headerRow.innerHTML = `<th class="habit-col">Habit</th>`;
 
     for (let day = 1; day <= daysInMonth; day++) {
         const th = document.createElement("th");
@@ -68,31 +159,34 @@ function renderMonth() {
     }
 
     /* ------------------------------
-       BUILD HABIT ROWS
+       SORT HABITS
     ------------------------------ */
-    
-    // Sort habits by frequency (descending) then alphabetically (ascending)
-    const sortedHabits = habits.map((habit, index) => {
-        const completionCount = Object.keys(habit.completed).length;
-        return { habit, index, completionCount };
-    }).sort((a, b) => {
-        if (b.completionCount !== a.completionCount) {
-            return b.completionCount - a.completionCount; // Most completed first
-        }
-        return a.habit.name.localeCompare(b.habit.name); // Alphabetically
-    });
+    const sortedHabits = habits
+        .map((habit, index) => {
+            const completionCount = habit.completed ? Object.keys(habit.completed).length : 0;
+            return { habit, index, completionCount };
+        })
+        .sort((a, b) => {
+            if (b.completionCount !== a.completionCount) {
+                return b.completionCount - a.completionCount;
+            }
+            return a.habit.name.localeCompare(b.habit.name);
+        });
 
+    /* ------------------------------
+       RENDER HABIT ROWS
+    ------------------------------ */
     sortedHabits.forEach(({ habit, index: originalIndex }) => {
-        const row = document.createElement("tr");
-        row.classList.add(`habit-row-${originalIndex}`);
 
-        // Habit name with delete button
+        const row = document.createElement("tr");
+
+        /* Habit name + delete button */
         const habitCell = document.createElement("td");
+        habitCell.classList.add("habit-col");
         const habitContainer = document.createElement("div");
         habitContainer.style.display = "flex";
         habitContainer.style.justifyContent = "space-between";
         habitContainer.style.alignItems = "center";
-        habitContainer.style.gap = "10px";
 
         const nameSpan = document.createElement("span");
         nameSpan.textContent = habit.name;
@@ -107,56 +201,34 @@ function renderMonth() {
         habitCell.appendChild(habitContainer);
         row.appendChild(habitCell);
 
-        // Notes
-        const notesCell = document.createElement("td");
-        const noteBtn = document.createElement("button");
-        noteBtn.textContent = "Note";
-        noteBtn.className = "note-btn";
-
-        const noteArea = document.createElement("div");
-        noteArea.className = "note-area";
-
-        const textarea = document.createElement("textarea");
-        textarea.value = habit.notes || "";
-
-        textarea.addEventListener("input", () => {
-            habit.notes = textarea.value;
-            saveData();
-
-            // Update all day buttons for this habit
-            const btns = document.querySelectorAll(`.habit-row-${originalIndex} .check-btn`);
-            btns.forEach((b, dayIndex) => {
-                const dayKey = `${currentYear}-${currentMonth}-${dayIndex + 1}`;
-                updateButtonState(b, habit, dayKey);
-            });
-        });
-
-        noteArea.appendChild(textarea);
-
-        noteBtn.addEventListener("click", () => {
-            noteArea.style.display = noteArea.style.display === "block" ? "none" : "block";
-        });
-
-        notesCell.appendChild(noteBtn);
-        notesCell.appendChild(noteArea);
-        row.appendChild(notesCell);
-
-        // Day squares
+        /* Day cells - all appended to the SAME row */
         for (let day = 1; day <= daysInMonth; day++) {
             const cell = document.createElement("td");
 
-            const btn = document.createElement("button");
-            btn.className = "check-btn";
-
             const key = `${currentYear}-${currentMonth}-${day}`;
 
-            updateButtonState(btn, habit, key);
+            if (!habit.completed) habit.completed = {};
+            if (!habit.notes || typeof habit.notes !== "object") {
+                habit.notes = {};
+            }
 
-            btn.addEventListener("click", (event) => {
-                toggleHabit(originalIndex, key, btn, event);
+            const habitBtn = document.createElement("button");
+            habitBtn.className = "habit-btn";
+            habitBtn.addEventListener("click", (event) => {
+                toggleHabit(originalIndex, key, habitBtn, memoBtn, event);
             });
 
-            cell.appendChild(btn);
+            const memoBtn = document.createElement("button");
+            memoBtn.className = "memo-btn";
+            memoBtn.textContent = "memo";
+            memoBtn.addEventListener("click", () => {
+                openModal(originalIndex, key);
+            });
+
+            updateDayButtons(habitBtn, memoBtn, habit, key);
+
+            cell.appendChild(habitBtn);
+            cell.appendChild(memoBtn);
             row.appendChild(cell);
         }
 
@@ -165,75 +237,41 @@ function renderMonth() {
 }
 
 /* ---------------------------------------------------
-   ADD HABIT
+   UPDATE BUTTON STATES
 --------------------------------------------------- */
 
-function addHabit() {
-    const name = prompt("Enter habit name:");
-    if (!name) return;
+function updateDayButtons(habitBtn, memoBtn, habit, key) {
+    const completed = habit.completed[key];
+    const hasNote = habit.notes[key] && habit.notes[key].trim() !== "";
 
-    habits.push({
-        name,
-        notes: "",
-        completed: {}
-    });
-
-    saveData();
-    renderMonth();
-}
-
-/* ---------------------------------------------------
-   DELETE HABIT
---------------------------------------------------- */
-
-function deleteHabit(habitIndex) {
-    if (confirm(`Delete "${habits[habitIndex].name}"?`)) {
-        habits.splice(habitIndex, 1);
-        saveData();
-        renderMonth();
-    }
-}
-
-/* ---------------------------------------------------
-   BUTTON STATE LOGIC
---------------------------------------------------- */
-
-function updateButtonState(btn, habit, key) {
-    const hasCompleted = habit.completed[key];
-    const hasNote = habit.notes && habit.notes.trim() !== "";
-
-    btn.classList.remove("completed", "note-only", "completed-note");
-
-    if (hasCompleted && hasNote) {
-        btn.classList.add("completed-note");
-    } else if (hasCompleted) {
-        btn.classList.add("completed");
-    } else if (hasNote) {
-        btn.classList.add("note-only");
-    }
+    habitBtn.style.background = completed ? "#003f7f" : "#000";
+    memoBtn.style.background = hasNote ? "#003f7f" : "#000";
 }
 
 /* ---------------------------------------------------
    TOGGLE HABIT + CONFETTI
 --------------------------------------------------- */
 
-function toggleHabit(habitIndex, key, btn, event) {
+function toggleHabit(habitIndex, key, habitBtn, memoBtn, event) {
     const habit = habits[habitIndex];
+
+    if (!habit.completed) habit.completed = {};
 
     if (habit.completed[key]) {
         delete habit.completed[key];
+        playUncheck();
     } else {
         habit.completed[key] = true;
         playChime();
         burstConfetti(event);
     }
 
-    updateButtonState(btn, habit, key);
+    updateDayButtons(habitBtn, memoBtn, habit, key);
     saveData();
 }
 
 /* ---------------------------------------------------
-   CONFETTI
+   MULTICOLOR CONFETTI
 --------------------------------------------------- */
 
 function burstConfetti(event) {
@@ -243,21 +281,22 @@ function burstConfetti(event) {
     const originX = rect.left + rect.width / 2;
     const originY = rect.top + rect.height / 2;
 
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 80; i++) {
         const piece = document.createElement("div");
         piece.style.position = "fixed";
-        piece.style.width = "6px";
-        piece.style.height = "6px";
+        piece.style.width = (4 + Math.random() * 4) + "px";
+        piece.style.height = piece.style.width;
         piece.style.background = getRandomColor();
         piece.style.left = originX + "px";
         piece.style.top = originY + "px";
         piece.style.borderRadius = "2px";
         piece.style.pointerEvents = "none";
+        piece.style.transform = `rotate(${Math.random() * 360}deg)`;
 
         container.appendChild(piece);
 
         const angle = Math.random() * 2 * Math.PI;
-        const speed = 3 + Math.random() * 4;
+        const speed = 4 + Math.random() * 6;
 
         let vx = Math.cos(angle) * speed;
         let vy = Math.sin(angle) * speed;
@@ -271,8 +310,8 @@ function burstConfetti(event) {
             piece.style.left = x + vx + "px";
             piece.style.top = y + vy + "px";
 
-            vy += 0.2;
-            opacity -= 0.02;
+            vy += 0.25;
+            opacity -= 0.015;
             piece.style.opacity = opacity;
 
             if (opacity <= 0) {
@@ -284,16 +323,26 @@ function burstConfetti(event) {
 }
 
 function getRandomColor() {
-    const colors = ["#ff00ff", "#ff1493", "#ff00cc", "#ff66ff"];
+    const colors = [
+        "#ff0000", "#ff7f00", "#ffff00",
+        "#00ff00", "#0000ff", "#4b0082",
+        "#9400d3"
+    ];
     return colors[Math.floor(Math.random() * colors.length)];
 }
 
 /* ---------------------------------------------------
-   CHIME
+   SOUNDS
 --------------------------------------------------- */
 
 function playChime() {
     const sound = document.getElementById("chimeSound");
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playUncheck() {
+    const sound = document.getElementById("uncheckSound");
     sound.currentTime = 0;
     sound.play();
 }
@@ -308,5 +357,16 @@ function saveData() {
 
 function loadData() {
     const saved = localStorage.getItem("habitData");
-    if (saved) habits = JSON.parse(saved);
+    if (!saved) return;
+
+    habits = JSON.parse(saved);
+
+    habits.forEach((habit) => {
+        if (!habit.completed || typeof habit.completed !== "object") {
+            habit.completed = {};
+        }
+        if (!habit.notes || typeof habit.notes !== "object") {
+            habit.notes = {};
+        }
+    });
 }

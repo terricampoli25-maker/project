@@ -4,60 +4,71 @@
     <meta charset="UTF-8">
     <title>Habit Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link rel="stylesheet" href="style_new.css">
+    <link rel="stylesheet" href="style_new_v2.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#003f7f">
     <script src="app_new.js" defer></script>
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/service-worker.js")
+                    .then(reg => console.log("Service Worker registered", reg))
+                    .catch(err => console.log("Service Worker failed", err));
+            });
+        }
+    </script>
 </head>
 
 <body>
     <div class="container">
 
-        <!-- HEADER -->
         <header class="header">
-
             <div class="top-row">
-
-                <!-- MONTH + ARROWS -->
                 <div class="month-nav">
                     <button id="prevMonthBtn" class="nav-btn large-nav">◀</button>
                     <span id="monthLabel" class="month-title"></span>
                     <button id="nextMonthBtn" class="nav-btn large-nav">▶</button>
                 </div>
-
             </div>
-
-            <!-- ADD HABIT BUTTON ABOVE TABLE -->
             <div class="add-habit-bar">
                 <button id="addHabitBtn" class="add-habit-btn">Add Habit</button>
             </div>
-
         </header>
 
-        <!-- TABLE -->
         <section class="table-wrapper">
             <table id="habitTable">
                 <thead>
                     <tr>
                         <th class="habit-col">Habit</th>
-                        <th class="notes-col">Notes</th>
-                        <!-- JS inserts day numbers -->
                     </tr>
                 </thead>
                 <tbody id="habitBody">
-                    <!-- JS inserts habit rows -->
                 </tbody>
             </table>
         </section>
 
     </div>
 
-    <!-- CONFETTI -->
     <div id="confettiContainer"></div>
 
-    <!-- SOUND -->
     <audio id="chimeSound">
         <source src="chime.mp3" type="audio/mpeg">
     </audio>
+    <audio id="uncheckSound">
+        <source src="uncheck.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="modalOverlay">
+        <div id="noteModal">
+            <div class="modal-header">
+                <span class="modal-title">Memo</span>
+                <button id="closeModalBtn">X</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="modalTextarea"></textarea>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
